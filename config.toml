@@ -1,0 +1,14 @@
+snapshot_length = 4096
+timeout = 30 # seconds
+filter = "beacon"
+
+[database]
+name = "sqlite3"
+path = "warpath-dev.db"
+max_open_connections = 1
+migrations_path = "db/db_sqlite3"
+migrations_environment = "development"
+
+[logging]
+mode = true
+file = "warpath.log"

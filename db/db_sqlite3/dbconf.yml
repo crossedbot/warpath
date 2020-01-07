@@ -1,0 +1,11 @@
+development:
+  driver: sqlite3
+  open: warpath-dev.db
+  dialect: sqlite3
+  import: github.com/mattn/go-sqlite3
+ 
+production:
+  driver: sqlite3
+  open: warpath.db
+  dialect: sqlite3
+  import: github.com/mattn/go-sqlite3
