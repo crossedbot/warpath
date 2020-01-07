@@ -43,7 +43,9 @@ func main() {
 	}()
 	loop := f.Count == -1
 	for frame := range warpath_t.Output() {
-		fmt.Println(frame.Save(db))
+		if err := frame.Save(db); err != nil {
+			logger.Log.Error(err)
+		}
 		if !loop {
 			if f.Count <= 1 {
 				break
