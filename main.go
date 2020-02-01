@@ -46,7 +46,7 @@ func main() {
 	}()
 	loop := f.Count == -1
 	for frame := range warpath_t.Output() {
-		if err := frame.Save(db); err != nil {
+		if err := database.SaveTx(db, frame); err != nil {
 			logger.Error(err)
 		}
 		if !loop {

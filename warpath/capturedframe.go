@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/jinzhu/gorm"
 )
 
 type CapturedFrame struct {
@@ -48,18 +47,6 @@ func NewCapturedFrame(packet *gopacket.Packet) (frame *CapturedFrame) {
 	frame.Timestamp = time.Now().Unix()
 	frame.Data = (*packet).Data()
 	return
-}
-
-func (frame *CapturedFrame) Save(db *gorm.DB) error {
-	tx := db.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-	if err := tx.Save(frame).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit().Error
 }
 
 // pack packs a byte array as a uint64 value.
