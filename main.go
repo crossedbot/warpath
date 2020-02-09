@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jinzhu/gorm"
-
 	database "github.com/crossedbot/common/golang/db"
 	"github.com/crossedbot/common/golang/logger"
 	"github.com/crossedbot/warpath/config"
@@ -46,7 +44,7 @@ func main() {
 	}()
 	loop := f.Count == -1
 	for frame := range warpath_t.Output() {
-		if err := database.SaveTx(db, frame); err != nil {
+		if err := db.SaveTx(frame); err != nil {
 			logger.Error(err)
 		}
 		if !loop {
@@ -80,7 +78,7 @@ func configuration() config.Config {
 	return c
 }
 
-func newDB(c *config.Config) (*gorm.DB, error) {
+func newDB(c *config.Config) (database.Database, error) {
 	db, err := database.New(
 		c.Database.Name,
 		c.Database.Path,
@@ -91,8 +89,7 @@ func newDB(c *config.Config) (*gorm.DB, error) {
 	}
 	db.LogMode(c.Logging.Mode)
 	db.SetLogger(logger.Log)
-	if err := database.Migrate(
-		db.DB(),
+	if err := db.Migrate(
 		c.Database.Name,
 		c.Database.Path,
 		c.Database.MigrationsPath,
