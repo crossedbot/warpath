@@ -9,7 +9,6 @@ import (
 
 	database "github.com/crossedbot/common/golang/db"
 	"github.com/crossedbot/common/golang/logger"
-	"github.com/crossedbot/warpath/config"
 	"github.com/crossedbot/warpath/warpath"
 )
 
@@ -72,13 +71,13 @@ func flags() Flags {
 	}
 }
 
-func configuration() config.Config {
-	var c config.Config
-	config.Load(&c)
+func configuration() Config {
+	var c Config
+	Load(&c)
 	return c
 }
 
-func newDB(c *config.Config) (database.Database, error) {
+func newDB(c *Config) (database.Database, error) {
 	db, err := database.New(
 		c.Database.Name,
 		c.Database.Path,
