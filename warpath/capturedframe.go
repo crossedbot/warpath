@@ -8,6 +8,7 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
+// CapturedFrame represents a captured frame from a Wifi device
 type CapturedFrame struct {
 	ID        int64   `json:"-"`
 	Type      string  `json:"type"`
@@ -19,23 +20,28 @@ type CapturedFrame struct {
 	Data      []byte  `json:"data"`
 }
 
+// NewCapturedFrame parses a gopacket and returns a captured frame.
 func NewCapturedFrame(packet *gopacket.Packet) (frame *CapturedFrame) {
 	frame = new(CapturedFrame)
 	rt := (*packet).Layer(layers.LayerTypeRadioTap)
 	if rt != nil {
+		// if a radiotap frame exists, parse it
 		if rt, ok := rt.(*layers.RadioTap); ok {
 			if rt.Present.DBMAntennaSignal() && rt.Present.Channel() {
-				dbmAntSignal := int(rt.DBMAntennaSignal)
-				if dbmAntSignal >= 127 {
-					dbmAntSignal = dbmAntSignal - 255
+				dbAntSignal := int(rt.DBAntennaSignal)
+				if dbAntSignal >= 127 {
+					dbAntSignal = dbAntSignal - 255
 				}
+				// estimate the distance from the wifi device using the
+				// Free-space path loss
 				frame.Distance = calculateFSPLDistance(
-					float64(dbmAntSignal),
+					float64(dbAntSignal),
 					float64(rt.ChannelFrequency),
 				)
 			}
 		}
 	}
+	// parse the 802.11 frame
 	dot11 := (*packet).Layer(layers.LayerTypeDot11)
 	if dot11 != nil {
 		if dot11, ok := dot11.(*layers.Dot11); ok {
@@ -61,6 +67,8 @@ func pack(b []byte) uint64 {
 	return p
 }
 
+// calculateFSPLDistance returns the calculated distance (in meters) using the
+// FSPL formula for a device using the antenna signal (dB) and frequency (MHz).
 func calculateFSPLDistance(antsignal, freq float64) float64 {
 	exp := ((27.55 - (20 * math.Log10(freq))) + math.Abs(antsignal)) / 20.0
 	return math.Pow(10.0, exp)

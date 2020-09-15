@@ -8,24 +8,25 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
+const (
+	MAX_QUEUE_SIZE = 666
+	MIN_QUEUE_SIZE = 10
+)
+
+// Warpath represents an interface to a warpath handler
 type Warpath interface {
 	Close()
-	Start(filter string) error
-	Pause()
-	Resume()
-	Stop()
-	Output() <-chan *CapturedFrame
+	Run(filter string) (<-chan *CapturedFrame, error)
 }
 
+// warpath represents a warpath handler
 type warpath struct {
 	device string
 	pcap_t *pcap.Handle
-	pause  chan struct{}
-	resume chan struct{}
 	quit   chan struct{}
-	output chan *CapturedFrame
 }
 
+// New returns a new Warpath handler, otherwise an error is returned.
 func New(device string, snaplen int, timeout time.Duration) (Warpath, error) {
 	var err error
 	if device == "" {
@@ -44,56 +45,41 @@ func New(device string, snaplen int, timeout time.Duration) (Warpath, error) {
 	return &warpath{
 		device: device,
 		pcap_t: pcap_t,
-		pause:  make(chan struct{}, 10),
-		resume: make(chan struct{}, 10),
-		quit:   make(chan struct{}, 10),
-		output: make(chan *CapturedFrame, 666),
+		quit:   make(chan struct{}, MIN_QUEUE_SIZE),
 	}, nil
 }
 
+// Close quit cpaturing, and close pcap handler
 func (w *warpath) Close() {
-	close(w.pause)
-	close(w.resume)
 	close(w.quit)
-	close(w.output)
 	w.pcap_t.Close()
 }
 
-func (w *warpath) Start(filter string) error {
+// Run returns a channel of captured frames, otherwise an error is returned.
+func (w *warpath) Run(filter string) (<-chan *CapturedFrame, error) {
+	// create the output and packet source
+	output := make(chan *CapturedFrame, MAX_QUEUE_SIZE)
 	src, err := w.packetSource(filter)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for {
-		select {
-		case <-w.quit:
-			return nil
-		case <-w.pause:
-			<-w.resume
-		case p := <-src.Packets():
-			frame := NewCapturedFrame(&p)
-			w.output <- frame
+	go func() {
+		for {
+			select {
+			case <-w.quit:
+				// return if handler closed
+				return
+			case p := <-src.Packets():
+				// parse the captured packets from source
+				frame := NewCapturedFrame(&p)
+				output <- frame
+			}
 		}
-	}
+	}()
+	return output, nil
 }
 
-func (w *warpath) Pause() {
-	w.pause <- struct{}{}
-}
-
-func (w *warpath) Resume() {
-	w.resume <- struct{}{}
-}
-
-func (w *warpath) Stop() {
-	w.Resume()
-	w.quit <- struct{}{}
-}
-
-func (w *warpath) Output() <-chan *CapturedFrame {
-	return w.output
-}
-
+// packetSource sets the BPF filter and returns a packet data source.
 func (w *warpath) packetSource(filter string) (*gopacket.PacketSource, error) {
 	// set the BPF filter
 	if err := w.pcap_t.SetBPFFilter(filter); err != nil {
